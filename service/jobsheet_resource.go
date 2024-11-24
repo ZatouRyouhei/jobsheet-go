@@ -332,7 +332,7 @@ func PdfJobSheet(c echo.Context) error {
 		// 	},
 		// }
 		// テキストの途中に改行コードが入っている場合の処理
-		rect = gopdf.Rect{W: 100, H: 20}
+		rect = gopdf.Rect{W: 480, H: 20}
 		pdf.SetX(60)
 		pdf.SetY(330)
 		contents := strings.Split(targetJobSheet.Content, "\n")
