@@ -3,6 +3,7 @@ package main
 import (
 	"jobsheet-go/database"
 	"jobsheet-go/logger"
+	"jobsheet-go/util/file"
 	"log"
 	"log/slog"
 	"os"
@@ -14,7 +15,7 @@ import (
 
 func main() {
 	// ログフォルダがない場合は作成
-	if !isDir("log") {
+	if !file.IsDir("log") {
 		err := os.Mkdir("log", os.ModePerm)
 		if err != nil {
 			log.Print(err)
@@ -51,17 +52,8 @@ func main() {
 
 	// サーバスタート
 	slog.Info("Server Start")
-	err = e.Start(":8080")
+	err = e.Start(":8081")
 	if err != nil {
 		slog.Error("Error", slog.Any("error", err))
 	}
-}
-
-// ディレクトリの存在確認
-func isDir(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
 }
