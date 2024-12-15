@@ -17,7 +17,7 @@ func GetNextId(tx *gorm.DB) (string, error) {
 	now := time.Now()
 	idHeader := now.Format("2006-01")
 	var maxJobSheet model.JobSheet
-	result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").Where("id LIKE ?", idHeader+"%").Order("id desc").First(&maxJobSheet)
+	result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id LIKE ?", idHeader+"%").Order("id desc").First(&maxJobSheet)
 	nextId := "001"
 	if result.RowsAffected > 0 {
 		maxSeqNo, err := strconv.Atoi(maxJobSheet.ID[8:])

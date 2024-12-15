@@ -17,10 +17,9 @@ func GetUser(c echo.Context) error {
 		slog.Error("Error", slog.Any("error", err))
 		return c.String(http.StatusBadRequest, "bad request")
 	}
-	var cnt int64
 	var db_user model.User
-	database.Db.Select("id, name, password, seqno").Where("id = ? and password = ?", user.Id, user.Password).First(&db_user).Count(&cnt)
-	if cnt == 1 {
+	result := database.Db.Select("id, name, password, seqno").Where("id = ? and password = ?", user.Id, user.Password).First(&db_user)
+	if result.RowsAffected == 1 {
 		user.Name = db_user.Name
 		user.SeqNo = db_user.SeqNo
 		return c.JSON(http.StatusCreated, user)
@@ -48,15 +47,11 @@ func GetUser(c echo.Context) error {
 
 func GetList(c echo.Context) error {
 	var dbUserList []model.User
-	database.Db.Select("id, password, name, seqno").Order("seqno").Find(&dbUserList)
+	database.Db.Order("seqno").Find(&dbUserList)
 	var rUserList []dto.RestUser
 	for _, user := range dbUserList {
-		rUser := new(dto.RestUser)
-		rUser.Id = user.Id
-		rUser.Password = user.Password
-		rUser.Name = user.Name
-		rUser.SeqNo = user.SeqNo
-		rUserList = append(rUserList, *rUser)
+		rUser := dto.NewRestUser(user)
+		rUserList = append(rUserList, rUser)
 	}
 	return c.JSON(http.StatusCreated, rUserList)
 }
@@ -68,17 +63,16 @@ func RegistUser(c echo.Context) error {
 		slog.Error("Error", slog.Any("error", err))
 		return c.String(http.StatusBadRequest, "bad request")
 	}
-	var cnt int64
 	var dbUser model.User
-	database.Db.Select("id, password, name, seqno").Where("id = ?", user.Id).Find(&dbUser).Count(&cnt)
-	if cnt == 0 {
+	result := database.Db.Where("id = ?", user.Id).Find(&dbUser)
+	if result.RowsAffected == 0 {
 		// 新規登録
 		dbUser.Id = user.Id
 		dbUser.Name = user.Name
 		dbUser.Password = user.Password
 		// 連番取得
 		var maxSeqUser model.User
-		database.Db.Select("id, password, name, seqno").Order("seqno desc").First(&maxSeqUser)
+		database.Db.Order("seqno desc").First(&maxSeqUser)
 		nextSeqNo := maxSeqUser.SeqNo + 1
 		dbUser.SeqNo = nextSeqNo
 		// データベースに登録
@@ -96,10 +90,9 @@ func RegistUser(c echo.Context) error {
 
 func DeleteUser(c echo.Context) error {
 	id := c.Param("id")
-	var cnt int64
 	var jobSheetData model.JobSheet
-	database.Db.Select("id").Where("contact_id = ? or deal_id = ?", id, id).Find(&jobSheetData).Count(&cnt)
-	if cnt > 0 {
+	result := database.Db.Where("contact_id = ? or deal_id = ?", id, id).Find(&jobSheetData)
+	if result.RowsAffected > 0 {
 		// 業務日誌で使用中のユーザは削除しない。
 		return c.String(http.StatusOK, "1")
 	} else {
@@ -123,7 +116,7 @@ func ChangeSeq(c echo.Context) error {
 	for seqNo := 1; seqNo <= len(userList); seqNo++ {
 		user := userList[seqNo-1]
 		var targetUser model.User
-		database.Db.Select("id, password, name, seqno").Where("id = ?", user.Id).First(&targetUser)
+		database.Db.Where("id = ?", user.Id).First(&targetUser)
 		targetUser.SeqNo = seqNo
 		database.Db.Save(&targetUser)
 	}
@@ -138,9 +131,8 @@ func ChangePassword(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "bad request")
 	}
 	var targetUser model.User
-	var cnt int64
-	database.Db.Select("id, password, name, seqno").Where("id = ?", restUser.Id).First(&targetUser).Count(&cnt)
-	if cnt == 1 {
+	result := database.Db.Where("id = ?", restUser.Id).First(&targetUser)
+	if result.RowsAffected == 1 {
 		targetUser.Password = restUser.Password
 		database.Db.Save(&targetUser)
 		return nil

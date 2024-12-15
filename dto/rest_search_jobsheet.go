@@ -65,6 +65,7 @@ func NewRestSearchJobSheet(jobSheet model.JobSheet, attachmentList []model.Attac
 	restSearchJobSheet.CompleteDate = jobSheet.CompleteDate.Format("2006-01-02")
 	restSearchJobSheet.Support = jobSheet.Support
 	restSearchJobSheet.ResponseTime = jobSheet.ResponseTime
+	restSearchJobSheet.FileList = []RestAttachment{}
 	for _, attachment := range attachmentList {
 		restSearchJobSheet.FileList = append(restSearchJobSheet.FileList, RestAttachment{SeqNo: attachment.SeqNo, FileName: attachment.FileName})
 	}
