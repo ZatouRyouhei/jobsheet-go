@@ -6,12 +6,14 @@ import (
 
 // 既存テーブルに合わせてモデルを作成する場合はcolumn名は大文字小文字も合わせる必要がある。
 // 合わせないとselectしたときにバインドできない。
+// nullを許容する場合はポインタにするが、
+// nullではなくゼロ値を使う仕様の方がいいかもしれない。
 type JobSheet struct {
 	ID               string         `gorm:"primaryKey;column:ID"`
-	CompleteDate     time.Time      `gorm:"column:COMPLETEDATE;type:date"`
+	CompleteDate     *time.Time     `gorm:"column:COMPLETEDATE;type:date"`
 	Content          string         `gorm:"column:CONTENT"`
 	Department       string         `gorm:"column:DEPARTMENT"`
-	LimitDate        time.Time      `gorm:"column:LIMITDATE;type:date"`
+	LimitDate        *time.Time     `gorm:"column:LIMITDATE;type:date"`
 	OccurDateTime    time.Time      `gorm:"column:OCCURDATETIME"`
 	Person           string         `gorm:"column:PERSON"`
 	ResponseTime     float64        `gorm:"column:RESPONSETIME"`

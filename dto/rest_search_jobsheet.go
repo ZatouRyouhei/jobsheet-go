@@ -55,14 +55,22 @@ func NewRestSearchJobSheet(jobSheet model.JobSheet, attachmentList []model.Attac
 		Name:     jobSheet.Contact.Name,
 		SeqNo:    jobSheet.Contact.SeqNo,
 	}
-	restSearchJobSheet.LimitDate = jobSheet.LimitDate.Format("2006-01-02")
+	if jobSheet.LimitDate != nil {
+		restSearchJobSheet.LimitDate = jobSheet.LimitDate.Format("2006-01-02")
+	} else {
+		restSearchJobSheet.LimitDate = ""
+	}
 	restSearchJobSheet.Deal = RestUser{
 		Id:       jobSheet.Deal.Id,
 		Password: "",
 		Name:     jobSheet.Deal.Name,
 		SeqNo:    jobSheet.Deal.SeqNo,
 	}
-	restSearchJobSheet.CompleteDate = jobSheet.CompleteDate.Format("2006-01-02")
+	if jobSheet.CompleteDate != nil {
+		restSearchJobSheet.CompleteDate = jobSheet.CompleteDate.Format("2006-01-02")
+	} else {
+		restSearchJobSheet.CompleteDate = ""
+	}
 	restSearchJobSheet.Support = jobSheet.Support
 	restSearchJobSheet.ResponseTime = jobSheet.ResponseTime
 	restSearchJobSheet.FileList = []RestAttachment{}

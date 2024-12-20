@@ -60,21 +60,27 @@ func RegistJobSheet(c echo.Context) error {
 	targetJobSheet.Content = restJobSheet.Content
 	targetJobSheet.ContactID = restJobSheet.ContactID
 	if restJobSheet.LimitDate != "" {
-		targetJobSheet.LimitDate, err = time.Parse("2006-01-02", restJobSheet.LimitDate)
+		limitDateAddr, err := time.Parse("2006-01-02", restJobSheet.LimitDate)
 		if err != nil {
 			slog.Error("Error", slog.Any("error", err))
 			return c.String(http.StatusBadRequest, "bad request")
 		}
+		targetJobSheet.LimitDate = &limitDateAddr
+	} else {
+		targetJobSheet.LimitDate = nil
 	}
 	if restJobSheet.DealID != "" {
 		targetJobSheet.DealID = restJobSheet.DealID
 	}
 	if restJobSheet.CompleteDate != "" {
-		targetJobSheet.CompleteDate, err = time.Parse("2006-01-02", restJobSheet.CompleteDate)
+		completeDateAddr, err := time.Parse("2006-01-02", restJobSheet.CompleteDate)
 		if err != nil {
 			slog.Error("Error", slog.Any("error", err))
 			return c.String(http.StatusBadRequest, "bad request")
 		}
+		targetJobSheet.CompleteDate = &completeDateAddr
+	} else {
+		targetJobSheet.CompleteDate = nil
 	}
 	targetJobSheet.Support = restJobSheet.Support
 	targetJobSheet.ResponseTime = restJobSheet.ResponseTime
@@ -198,15 +204,17 @@ func DownloadJobSheet(c echo.Context) error {
 		f.SetCellValue(sheetName, "A"+strconv.Itoa(i+3), jobSheet.ID)
 		// ステータス
 		status := ""
-		if jobSheet.CompleteDate.IsZero() {
-			if jobSheet.LimitDate.Before(today) {
-				// 期限超過
-				status = "期限超過"
-			} else {
-				// 期限前
-				diffDays := jobSheet.LimitDate.Sub(today).Hours() / 24
-				if diffDays <= 3 {
-					status = "あと" + strconv.Itoa(int(diffDays)) + "日"
+		if jobSheet.CompleteDate != nil {
+			if jobSheet.LimitDate != nil {
+				if jobSheet.LimitDate.Before(today) {
+					// 期限超過
+					status = "期限超過"
+				} else {
+					// 期限前
+					diffDays := jobSheet.LimitDate.Sub(today).Hours() / 24
+					if diffDays <= 3 {
+						status = "あと" + strconv.Itoa(int(diffDays)) + "日"
+					}
 				}
 			}
 		} else {
@@ -239,7 +247,7 @@ func DownloadJobSheet(c echo.Context) error {
 		f.SetCellValue(sheetName, "L"+strconv.Itoa(i+3), jobSheet.Content)
 		// 完了期限
 		limitDate := ""
-		if !jobSheet.LimitDate.IsZero() {
+		if jobSheet.LimitDate != nil {
 			limitDate = jobSheet.LimitDate.Format("2006/01/02")
 		}
 		f.SetCellValue(sheetName, "M"+strconv.Itoa(i+3), limitDate)
@@ -249,7 +257,7 @@ func DownloadJobSheet(c echo.Context) error {
 		f.SetCellValue(sheetName, "O"+strconv.Itoa(i+3), jobSheet.Deal.Name)
 		// 完了日
 		completeDate := ""
-		if !jobSheet.CompleteDate.IsZero() {
+		if jobSheet.CompleteDate != nil {
 			completeDate = jobSheet.CompleteDate.Format("2006/01/02")
 		}
 		f.SetCellValue(sheetName, "P"+strconv.Itoa(i+3), completeDate)
@@ -340,7 +348,7 @@ func PdfJobSheet(c echo.Context) error {
 			pdf.MultiCell(&rect, content)
 		}
 		// 完了期限
-		if !targetJobSheet.LimitDate.IsZero() {
+		if targetJobSheet.LimitDate != nil {
 			drawText(&pdf, 60, 500, targetJobSheet.LimitDate.Format("2006年01月02日"))
 		}
 		// 対応詳細
@@ -354,7 +362,7 @@ func PdfJobSheet(c echo.Context) error {
 		// 対応者
 		drawText(&pdf, 60, 730, targetJobSheet.Deal.Name)
 		// 完了日
-		if !targetJobSheet.CompleteDate.IsZero() {
+		if targetJobSheet.CompleteDate != nil {
 			drawText(&pdf, 230, 730, targetJobSheet.CompleteDate.Format("2006年01月02日"))
 		}
 		// 対応時間
