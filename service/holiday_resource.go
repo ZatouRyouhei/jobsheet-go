@@ -2,7 +2,6 @@ package service
 
 import (
 	"bufio"
-	"fmt"
 	"jobsheet-go/database"
 	"jobsheet-go/database/model"
 	"jobsheet-go/dto"
@@ -51,7 +50,7 @@ func RegistHoliday(c echo.Context) error {
 	s := bufio.NewScanner(reader)
 
 	// エラーリスト
-	var errorList []dto.RestErrorMessage
+	errorList := []dto.RestErrorMessage{}
 
 	// データ読み込み
 	var holidays []model.Holiday
@@ -62,7 +61,6 @@ func RegistHoliday(c echo.Context) error {
 			rowNum += 1
 			continue
 		}
-		fmt.Println(s.Text())
 		result := strings.Split(s.Text(), ",")
 		if len(result) != 2 {
 			errorList = append(errorList, dto.RestErrorMessage{LineNo: rowNum, ErrorMsg: "フォーマットエラー（日付と祝日名称を入力してください。）"})
