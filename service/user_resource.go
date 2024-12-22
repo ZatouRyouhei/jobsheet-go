@@ -114,9 +114,9 @@ func ChangeSeq(c echo.Context) error {
 	}
 	userList := restUserList.UserList
 	for seqNo := 1; seqNo <= len(userList); seqNo++ {
-		user := userList[seqNo-1]
+		targetId := userList[seqNo-1]
 		var targetUser model.User
-		database.Db.Where("id = ?", user.Id).First(&targetUser)
+		database.Db.Where("id = ?", targetId).First(&targetUser)
 		targetUser.SeqNo = seqNo
 		database.Db.Save(&targetUser)
 	}
