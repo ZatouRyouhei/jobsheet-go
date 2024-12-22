@@ -18,6 +18,8 @@ func SetRoute(e *echo.Echo) {
 
 	e.POST(constant.BASE_URL+"/user/changeSeq/", service.ChangeSeq)
 
+	e.POST(constant.BASE_URL+"/user/changePassword/", service.ChangePassword)
+
 	e.POST(constant.BASE_URL+"/jobsheet/regist/", service.RegistJobSheet)
 
 	e.DELETE(constant.BASE_URL+"/jobsheet/delete/:id", service.DeleteJobSheet)
