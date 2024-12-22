@@ -32,7 +32,7 @@ func RegistAttachment(c echo.Context) error {
 		if result.RowsAffected > 0 {
 			nextSeqNo = maxAttachment.SeqNo + 1
 		}
-		if constant.ATTACHMENT_MODE == 1 {
+		if constant.ATTACHMENT_MODE == constant.DBMode {
 			// DBモードのとき
 			targetAttachement := new(model.Attachment)
 			targetAttachement.ID = id
@@ -56,11 +56,19 @@ func RegistAttachment(c echo.Context) error {
 			targetAttachement.SeqNo = nextSeqNo
 			targetAttachement.FileName = file.Filename
 			database.Db.Create(targetAttachement)
+
+			src, err := file.Open()
+			if err != nil {
+				slog.Error("Error", slog.Any("error", err))
+				return c.String(http.StatusBadRequest, "file cant open")
+			}
+			defer src.Close()
+
 			// フォルダに配置する。
 			putDir := constant.ATTACHMENT_BASE_DIR + id + "/" + strconv.Itoa(nextSeqNo)
 			// フォルダが存在しない場合は作成
 			if !fileUtil.IsDir(putDir) {
-				err := os.Mkdir(putDir, os.ModePerm)
+				err := os.MkdirAll(putDir, os.ModePerm)
 				if err != nil {
 					slog.Error("Error", slog.Any("error", err))
 					return c.String(http.StatusBadRequest, "putDir cant create")
@@ -72,6 +80,12 @@ func RegistAttachment(c echo.Context) error {
 				return c.String(http.StatusBadRequest, "file cant put")
 			}
 			defer dst.Close()
+
+			_, err = io.Copy(dst, src)
+			if err != nil {
+				slog.Error("Error", slog.Any("error", err))
+				return c.String(http.StatusBadRequest, "file cant copy")
+			}
 		}
 	}
 	// 返信用の添付ファイルリストを作成
@@ -97,7 +111,7 @@ func DownloadAttachment(c echo.Context) error {
 	}
 
 	var targetFile []byte
-	if constant.ATTACHMENT_MODE == 1 {
+	if constant.ATTACHMENT_MODE == constant.DBMode {
 		// DBモードの時
 		targetFile = targetAttachment.AttachFile
 	} else {
@@ -118,7 +132,7 @@ func DeleteAttachment(c echo.Context) error {
 	id := c.Param("id")
 	seqNo := c.Param("seqNo")
 	database.Db.Where("ID = ? AND SEQNO = ?", id, seqNo).Delete(&model.Attachment{})
-	if constant.ATTACHMENT_MODE == 2 {
+	if constant.ATTACHMENT_MODE == constant.FileMode {
 		// FILEモードの場合はファイルも削除する
 		targetDir := constant.ATTACHMENT_BASE_DIR + id + "/" + seqNo
 		err := os.RemoveAll(targetDir)
@@ -130,7 +144,7 @@ func DeleteAttachment(c echo.Context) error {
 	// 返信用の添付ファイルリストを作成
 	var attachmentList []model.Attachment
 	database.Db.Where("ID = ?", id).Order("SEQNO").Find(&attachmentList)
-	var restAttachmentList []dto.RestAttachment
+	restAttachmentList := []dto.RestAttachment{}
 	for _, attachment := range attachmentList {
 		restAttachmentList = append(restAttachmentList, dto.RestAttachment{
 			SeqNo:    attachment.SeqNo,
