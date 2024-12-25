@@ -32,6 +32,10 @@ func SetRoute(e *echo.Echo) {
 
 	e.GET(constant.BASE_URL+"/jobsheet/pdf/:id", service.PdfJobSheet)
 
+	e.GET(constant.BASE_URL+"/jobsheet/stats/:year", service.GetStatsJobSheet)
+
+	e.GET(constant.BASE_URL+"/jobsheet/stats/:year/:systemId", service.GetChart)
+
 	e.POST(constant.BASE_URL+"/attachment/regist/:id", service.RegistAttachment)
 
 	e.GET(constant.BASE_URL+"/attachment/download/:id/:seqNo", service.DownloadAttachment)

@@ -419,3 +419,195 @@ func drawGrid(pdf *gopdf.GoPdf, page *gopdf.Rect) {
 		pdf.Line(0, y, page.W, y)
 	}
 }
+
+func GetStatsJobSheet(c echo.Context) error {
+	year := c.Param("year")
+	restStatJobSheetList := []dto.RestStatJobSheet{}
+	var systemList []model.BusinessSystem
+	database.Db.Order("ID").Find(&systemList)
+
+	for _, system := range systemList {
+		restStatJobSheet := new(dto.RestStatJobSheet)
+		restStatJobSheet.BusinessSystem = dto.NewRestBusinessSystem(system)
+		// 1年の合計時間用
+		responseTimeSum := 0.0
+		// 4月から3月まで件数をカウントする。
+		for monthIdx := 1; monthIdx <= 12; monthIdx++ {
+			statsYear, err := strconv.Atoi(year)
+			if err != nil {
+				slog.Error("Error", slog.Any("error", err))
+				return c.String(http.StatusBadRequest, "bad request")
+			}
+			if monthIdx <= 3 {
+				statsYear += 1
+			}
+			jst, _ := time.LoadLocation("Asia/Tokyo")
+			dateFrom := time.Date(statsYear, time.Month(monthIdx), 1, 0, 0, 0, 0, jst)
+			dateFromStr := dateFrom.Format("2006-01-02")
+			nextStatsYear := statsYear
+			nextMonthIdx := monthIdx + 1
+			if nextMonthIdx == 13 {
+				nextStatsYear += 1
+				nextMonthIdx = 1
+			}
+			dateTo := time.Date(nextStatsYear, time.Month(nextMonthIdx), 1, 0, 0, 0, 0, jst)
+			dateToStr := dateTo.Format("2006-01-02")
+			occurCnt := 0
+			database.Db.Raw("SELECT COUNT(*) FROM t_job_sheet WHERE OCCURDATETIME >= STR_TO_DATE(?, '%Y-%m-%d') AND OCCURDATETIME < STR_TO_DATE(?, '%Y-%m-%d') AND BUSINESSSYSTEM_ID = ?", dateFromStr, dateToStr, system.ID).Scan(&occurCnt)
+			completeCnt := 0
+			database.Db.Raw("SELECT COUNT(*) FROM t_job_sheet WHERE COMPLETEDATE >= STR_TO_DATE(?, '%Y-%m-%d') AND COMPLETEDATE < STR_TO_DATE(?, '%Y-%m-%d') AND COMPLETEDATE IS NOT NULL AND BUSINESSSYSTEM_ID = ?", dateFromStr, dateToStr, system.ID).Scan(&completeCnt)
+			responseTime := 0.0
+			database.Db.Raw("SELECT COALESCE(SUM(RESPONSETIME), 0.0) FROM t_job_sheet WHERE COMPLETEDATE >= STR_TO_DATE(?, '%Y-%m-%d') AND COMPLETEDATE < STR_TO_DATE(?, '%Y-%m-%d') AND COMPLETEDATE IS NOT NULL AND RESPONSETIME IS NOT NULL AND BUSINESSSYSTEM_ID = ?", dateFromStr, dateToStr, system.ID).Scan(&responseTime)
+			switch monthIdx {
+			case 1:
+				restStatJobSheet.OccurCnt1 = occurCnt
+				restStatJobSheet.CompleteCnt1 = completeCnt
+				restStatJobSheet.ResponseTime1 = responseTime
+			case 2:
+				restStatJobSheet.OccurCnt2 = occurCnt
+				restStatJobSheet.CompleteCnt2 = completeCnt
+				restStatJobSheet.ResponseTime2 = responseTime
+			case 3:
+				restStatJobSheet.OccurCnt3 = occurCnt
+				restStatJobSheet.CompleteCnt3 = completeCnt
+				restStatJobSheet.ResponseTime3 = responseTime
+			case 4:
+				restStatJobSheet.OccurCnt4 = occurCnt
+				restStatJobSheet.CompleteCnt4 = completeCnt
+				restStatJobSheet.ResponseTime4 = responseTime
+			case 5:
+				restStatJobSheet.OccurCnt5 = occurCnt
+				restStatJobSheet.CompleteCnt5 = completeCnt
+				restStatJobSheet.ResponseTime5 = responseTime
+			case 6:
+				restStatJobSheet.OccurCnt6 = occurCnt
+				restStatJobSheet.CompleteCnt6 = completeCnt
+				restStatJobSheet.ResponseTime6 = responseTime
+			case 7:
+				restStatJobSheet.OccurCnt7 = occurCnt
+				restStatJobSheet.CompleteCnt7 = completeCnt
+				restStatJobSheet.ResponseTime7 = responseTime
+			case 8:
+				restStatJobSheet.OccurCnt8 = occurCnt
+				restStatJobSheet.CompleteCnt8 = completeCnt
+				restStatJobSheet.ResponseTime8 = responseTime
+			case 9:
+				restStatJobSheet.OccurCnt9 = occurCnt
+				restStatJobSheet.CompleteCnt9 = completeCnt
+				restStatJobSheet.ResponseTime9 = responseTime
+			case 10:
+				restStatJobSheet.OccurCnt10 = occurCnt
+				restStatJobSheet.CompleteCnt10 = completeCnt
+				restStatJobSheet.ResponseTime10 = responseTime
+			case 11:
+				restStatJobSheet.OccurCnt11 = occurCnt
+				restStatJobSheet.CompleteCnt11 = completeCnt
+				restStatJobSheet.ResponseTime11 = responseTime
+			case 12:
+				restStatJobSheet.OccurCnt12 = occurCnt
+				restStatJobSheet.CompleteCnt12 = completeCnt
+				restStatJobSheet.ResponseTime12 = responseTime
+			}
+			responseTimeSum += responseTime
+		}
+		// 未完了の件数を求める。
+		leftCnt := 0
+		database.Db.Raw("SELECT COUNT(*) FROM t_job_sheet WHERE COMPLETEDATE IS NULL AND BUSINESSSYSTEM_ID = ?", system.ID).Scan(&leftCnt)
+		restStatJobSheet.LeftCnt = leftCnt
+		// 1年の合計時間
+		restStatJobSheet.ResponseTimeSum = responseTimeSum
+		restStatJobSheetList = append(restStatJobSheetList, *restStatJobSheet)
+	}
+	return c.JSON(http.StatusCreated, restStatJobSheetList)
+}
+
+func GetChart(c echo.Context) error {
+	year := c.Param("year")
+	systemId := c.Param("systemId")
+	targetSystem := new(model.BusinessSystem)
+	result := database.Db.Where("ID = ?", systemId).Find(targetSystem)
+	if result.RowsAffected > 0 {
+		restStatJobSheet := new(dto.RestStatJobSheet)
+		restStatJobSheet.BusinessSystem = dto.NewRestBusinessSystem(*targetSystem)
+		for monthIdx := 1; monthIdx <= 12; monthIdx++ {
+			statsYear, err := strconv.Atoi(year)
+			if err != nil {
+				slog.Error("Error", slog.Any("error", err))
+				return c.String(http.StatusBadRequest, "bad request")
+			}
+			if monthIdx <= 3 {
+				statsYear += 1
+			}
+			jst, _ := time.LoadLocation("Asia/Tokyo")
+			dateFrom := time.Date(statsYear, time.Month(monthIdx), 1, 0, 0, 0, 0, jst)
+			dateFromStr := dateFrom.Format("2006-01-02")
+			nextStatsYear := statsYear
+			nextMonthIdx := monthIdx + 1
+			if nextMonthIdx == 13 {
+				nextStatsYear += 1
+				nextMonthIdx = 1
+			}
+			dateTo := time.Date(nextStatsYear, time.Month(nextMonthIdx), 1, 0, 0, 0, 0, jst)
+			dateToStr := dateTo.Format("2006-01-02")
+			occurCnt := 0
+			database.Db.Raw("SELECT COUNT(*) FROM t_job_sheet WHERE OCCURDATETIME >= STR_TO_DATE(?, '%Y-%m-%d') AND OCCURDATETIME < STR_TO_DATE(?, '%Y-%m-%d') AND BUSINESSSYSTEM_ID = ?", dateFromStr, dateToStr, systemId).Scan(&occurCnt)
+			completeCnt := 0
+			database.Db.Raw("SELECT COUNT(*) FROM t_job_sheet WHERE COMPLETEDATE >= STR_TO_DATE(?, '%Y-%m-%d') AND COMPLETEDATE < STR_TO_DATE(?, '%Y-%m-%d') AND COMPLETEDATE IS NOT NULL AND BUSINESSSYSTEM_ID = ?", dateFromStr, dateToStr, systemId).Scan(&completeCnt)
+			responseTime := 0.0
+			database.Db.Raw("SELECT COALESCE(SUM(RESPONSETIME), 0.0) FROM t_job_sheet WHERE COMPLETEDATE >= STR_TO_DATE(?, '%Y-%m-%d') AND COMPLETEDATE < STR_TO_DATE(?, '%Y-%m-%d') AND COMPLETEDATE IS NOT NULL AND RESPONSETIME IS NOT NULL AND BUSINESSSYSTEM_ID = ?", dateFromStr, dateToStr, systemId).Scan(&responseTime)
+			switch monthIdx {
+			case 1:
+				restStatJobSheet.OccurCnt1 = occurCnt
+				restStatJobSheet.CompleteCnt1 = completeCnt
+				restStatJobSheet.ResponseTime1 = responseTime
+			case 2:
+				restStatJobSheet.OccurCnt2 = occurCnt
+				restStatJobSheet.CompleteCnt2 = completeCnt
+				restStatJobSheet.ResponseTime2 = responseTime
+			case 3:
+				restStatJobSheet.OccurCnt3 = occurCnt
+				restStatJobSheet.CompleteCnt3 = completeCnt
+				restStatJobSheet.ResponseTime3 = responseTime
+			case 4:
+				restStatJobSheet.OccurCnt4 = occurCnt
+				restStatJobSheet.CompleteCnt4 = completeCnt
+				restStatJobSheet.ResponseTime4 = responseTime
+			case 5:
+				restStatJobSheet.OccurCnt5 = occurCnt
+				restStatJobSheet.CompleteCnt5 = completeCnt
+				restStatJobSheet.ResponseTime5 = responseTime
+			case 6:
+				restStatJobSheet.OccurCnt6 = occurCnt
+				restStatJobSheet.CompleteCnt6 = completeCnt
+				restStatJobSheet.ResponseTime6 = responseTime
+			case 7:
+				restStatJobSheet.OccurCnt7 = occurCnt
+				restStatJobSheet.CompleteCnt7 = completeCnt
+				restStatJobSheet.ResponseTime7 = responseTime
+			case 8:
+				restStatJobSheet.OccurCnt8 = occurCnt
+				restStatJobSheet.CompleteCnt8 = completeCnt
+				restStatJobSheet.ResponseTime8 = responseTime
+			case 9:
+				restStatJobSheet.OccurCnt9 = occurCnt
+				restStatJobSheet.CompleteCnt9 = completeCnt
+				restStatJobSheet.ResponseTime9 = responseTime
+			case 10:
+				restStatJobSheet.OccurCnt10 = occurCnt
+				restStatJobSheet.CompleteCnt10 = completeCnt
+				restStatJobSheet.ResponseTime10 = responseTime
+			case 11:
+				restStatJobSheet.OccurCnt11 = occurCnt
+				restStatJobSheet.CompleteCnt11 = completeCnt
+				restStatJobSheet.ResponseTime11 = responseTime
+			case 12:
+				restStatJobSheet.OccurCnt12 = occurCnt
+				restStatJobSheet.CompleteCnt12 = completeCnt
+				restStatJobSheet.ResponseTime12 = responseTime
+			}
+		}
+		return c.JSON(http.StatusCreated, restStatJobSheet)
+	} else {
+		return c.String(http.StatusBadRequest, "bad request")
+	}
+}
