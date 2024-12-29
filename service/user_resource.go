@@ -6,11 +6,13 @@ import (
 	"jobsheet-go/dto"
 	"log/slog"
 	"net/http"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 )
 
-func GetUser(c echo.Context) error {
+func Login(c echo.Context) error {
 	user := new(dto.RestUser)
 	err := c.Bind(user)
 	if err != nil {
@@ -18,11 +20,25 @@ func GetUser(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "bad request")
 	}
 	var db_user model.User
-	result := database.Db.Select("id, name, password, seqno").Where("id = ? and password = ?", user.Id, user.Password).First(&db_user)
+	result := database.Db.Where("id = ? and password = ?", user.Id, user.Password).First(&db_user)
 	if result.RowsAffected == 1 {
-		user.Name = db_user.Name
-		user.SeqNo = db_user.SeqNo
-		return c.JSON(http.StatusCreated, user)
+		// JWT生成
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 72)),
+		})
+		t, err := token.SignedString([]byte("secret"))
+		if err != nil {
+			slog.Error("Error", slog.Any("error", err))
+		}
+		return c.JSON(http.StatusOK, dto.RestLoginUser{
+			User: dto.RestUser{
+				Id:       db_user.Id,
+				Password: "",
+				Name:     db_user.Name,
+				SeqNo:    db_user.SeqNo,
+			},
+			Token: t,
+		})
 	} else {
 		return nil
 	}

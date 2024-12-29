@@ -4,11 +4,26 @@ import (
 	"jobsheet-go/constant"
 	"jobsheet-go/service"
 
+	echojwt "github.com/labstack/echo-jwt/v4"
+
 	"github.com/labstack/echo/v4"
 )
 
 func SetRoute(e *echo.Echo) {
-	e.POST(constant.BASE_URL+"/user/login/", service.GetUser)
+	// JWT設定
+	e.Use(echojwt.WithConfig(echojwt.Config{
+		SigningKey: []byte("secret"),
+		// ログイン処理だけJWT認証から除外する。
+		Skipper: func(c echo.Context) bool {
+			if c.Request().URL.Path == constant.BASE_URL+"/user/login/" {
+				return true
+			} else {
+				return false
+			}
+		},
+	}))
+
+	e.POST(constant.BASE_URL+"/user/login/", service.Login)
 
 	e.GET(constant.BASE_URL+"/user/getList/", service.GetList)
 
